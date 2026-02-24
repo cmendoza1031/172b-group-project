@@ -64,7 +64,7 @@ class PromptTunedViT(nn.Module):
         pixel_values: torch.Tensor,
         labels: torch.Tensor = None,
         output_attentions: bool = False,
-    ) -> ImageClassifierOutput:
+    ):
         """I run the prompted forward pass using a forward hook.
 
         I register a one-shot hook on the embedding layer to inject prompt
