@@ -20,7 +20,7 @@ class Config:
 
     # Training hyperparameters
     batch_size: int = 32
-    num_epochs: int = 25
+    num_epochs: int = 10
     learning_rate: float = 2e-5
     weight_decay: float = 0.01
     warmup_ratio: float = 0.1      # fraction of total steps used for linear warmup
