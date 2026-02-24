@@ -30,4 +30,4 @@ class Config:
     # Output
     output_dir: str = "outputs/full_finetune"
     seed: int = 42
-    num_workers: int = 4
+    num_workers: int = 2
