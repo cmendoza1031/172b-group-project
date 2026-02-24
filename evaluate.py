@@ -44,7 +44,7 @@ def run_evaluation(
     all_preds: List[int] = []
     all_labels: List[int] = []
 
-    use_amp = device.type in ("cuda", "mps")
+    use_amp = device.type == "cuda"
     for pixel_values, labels in tqdm(loader, desc="Eval", leave=False):
         pixel_values = pixel_values.to(device, non_blocking=True)
         with torch.autocast(device_type=device.type, enabled=use_amp):

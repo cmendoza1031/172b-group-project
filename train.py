@@ -142,7 +142,11 @@ def main(cfg: Config) -> None:
     os.makedirs(cfg.output_dir, exist_ok=True)
 
     # Data
+    # pin_memory and num_workers are CUDA-only optimizations. On MPS,
+    # pinned memory isn't supported and spawning workers on macOS adds
+    # overhead that outweighs prefetch benefit when compute is the bottleneck.
     pin_memory = device.type == "cuda"
+    num_workers = cfg.num_workers if device.type == "cuda" else 0
     train_loader, val_loader, test_loader, class_names = create_dataloaders(
         data_root=cfg.data_root,
         image_size=cfg.image_size,
@@ -150,7 +154,7 @@ def main(cfg: Config) -> None:
         train_ratio=cfg.train_ratio,
         val_ratio=cfg.val_ratio,
         seed=cfg.seed,
-        num_workers=cfg.num_workers,
+        num_workers=num_workers,
         pin_memory=pin_memory,
     )
     print(
@@ -178,9 +182,9 @@ def main(cfg: Config) -> None:
     warmup_steps = int(total_steps * cfg.warmup_ratio)
     scheduler = get_cosine_schedule_with_warmup(optimizer, warmup_steps, total_steps)
 
-    # I enable autocast on both CUDA and MPS for float16 speedup.
-    # GradScaler is CUDA-only; MPS uses autocast without a scaler.
-    use_amp = device.type in ("cuda", "mps")
+    # MPS does not have Tensor Cores, so float16 autocast adds conversion
+    # overhead without a net compute benefit. Only enable AMP on CUDA.
+    use_amp = device.type == "cuda"
     scaler = torch.cuda.amp.GradScaler() if device.type == "cuda" else None
 
     best_val_acc = 0.0
