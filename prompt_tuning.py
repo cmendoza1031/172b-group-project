@@ -26,7 +26,6 @@ How this fits the ablation study:
 import torch
 import torch.nn as nn
 from transformers import ViTForImageClassification
-from transformers.modeling_outputs import ImageClassifierOutput
 
 
 class PromptTunedViT(nn.Module):
@@ -66,55 +65,34 @@ class PromptTunedViT(nn.Module):
         labels: torch.Tensor = None,
         output_attentions: bool = False,
     ) -> ImageClassifierOutput:
-        """I run the prompted forward pass.
+        """I run the prompted forward pass using a forward hook.
 
-        I intercept between the ViT embedding layer and the encoder to
-        inject prompt tokens. The rest of the forward pass is standard.
+        I register a one-shot hook on the embedding layer to inject prompt
+        tokens after the standard patch+CLS+position embeddings are computed.
+        The full model forward pass then runs unmodified, so this approach
+        is robust to any internal API changes in transformers.
         """
         batch_size = pixel_values.shape[0]
-        vit = self.vit_model.vit
-
-        # Standard patch + CLS + position embeddings
-        # Output shape: (B, 1 + 196, 768) = (B, 197, 768)
-        embedding_output = vit.embeddings(pixel_values)
-
-        # Expand prompt tokens to batch dimension and apply dropout
         prompts = self.prompt_dropout(
             self.prompt_embeddings.expand(batch_size, -1, -1)
         )
 
-        # Insert prompts between CLS and patch tokens.
-        # Final layout: [CLS | p1...pN | patch1...patch196]
-        # CLS stays at index 0 so the classifier head needs no changes.
-        embedding_output = torch.cat([
-            embedding_output[:, :1, :],   # CLS token  (B, 1, 768)
-            prompts,                       # prompt tokens (B, N, 768)
-            embedding_output[:, 1:, :],   # 196 patch tokens (B, 196, 768)
-        ], dim=1)
-        # Shape: (B, 1 + num_prompts + 196, 768)
+        # Hook intercepts embeddings output and inserts prompt tokens.
+        # Layout after injection: [CLS | p1...pN | patch1...patch196]
+        def _inject(module, input, output):
+            return torch.cat([
+                output[:, :1, :],   # CLS token  (B, 1, 768)
+                prompts,            # prompt tokens (B, N, 768)
+                output[:, 1:, :],   # 196 patch tokens (B, 196, 768)
+            ], dim=1)
 
-        # Full transformer encoder — handles any sequence length
-        encoder_outputs = vit.encoder(
-            embedding_output,
-            output_attentions=output_attentions,
-            output_hidden_states=False,
-            return_dict=True,
-        )
+        handle = self.vit_model.vit.embeddings.register_forward_hook(_inject)
+        try:
+            outputs = self.vit_model(pixel_values, labels=labels)
+        finally:
+            handle.remove()
 
-        # Layer norm then classify from CLS token at index 0
-        sequence_output = vit.layernorm(encoder_outputs.last_hidden_state)
-        cls_output = sequence_output[:, 0, :]
-        logits = self.vit_model.classifier(cls_output)
-
-        loss = None
-        if labels is not None:
-            loss = nn.CrossEntropyLoss()(logits, labels)
-
-        return ImageClassifierOutput(
-            loss=loss,
-            logits=logits,
-            attentions=encoder_outputs.attentions if output_attentions else None,
-        )
+        return outputs
 
     def count_prompt_parameters(self) -> int:
         """I return the number of trainable prompt parameters."""
