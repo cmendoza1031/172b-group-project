@@ -167,7 +167,7 @@ def main(cfg: Config) -> None:
     model = build_model(cfg.num_classes, cfg.model_name, device)
     if cfg.num_prompts > 0:
         model = PromptTunedViT(model, num_prompts=cfg.num_prompts,
-                               prompt_dropout=cfg.prompt_dropout)
+                               prompt_dropout=cfg.prompt_dropout).to(device)
         print(f"Prompt tuning enabled: {cfg.num_prompts} tokens "
               f"({model.count_prompt_parameters():,} extra params)")
     counts = count_parameters(model)
