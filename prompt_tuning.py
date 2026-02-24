@@ -96,7 +96,6 @@ class PromptTunedViT(nn.Module):
         # Full transformer encoder — handles any sequence length
         encoder_outputs = vit.encoder(
             embedding_output,
-            head_mask=None,
             output_attentions=output_attentions,
             output_hidden_states=False,
             return_dict=True,
