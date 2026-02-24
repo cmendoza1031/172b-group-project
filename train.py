@@ -22,6 +22,7 @@ from config import Config
 from dataset import create_dataloaders
 from evaluate import run_evaluation
 from model import build_model, count_parameters
+from prompt_tuning import PromptTunedViT
 from utils import get_cosine_schedule_with_warmup, get_device, set_seed
 
 
@@ -164,6 +165,11 @@ def main(cfg: Config) -> None:
 
     # Model
     model = build_model(cfg.num_classes, cfg.model_name, device)
+    if cfg.num_prompts > 0:
+        model = PromptTunedViT(model, num_prompts=cfg.num_prompts,
+                               prompt_dropout=cfg.prompt_dropout)
+        print(f"Prompt tuning enabled: {cfg.num_prompts} tokens "
+              f"({model.count_prompt_parameters():,} extra params)")
     counts = count_parameters(model)
     print(
         f"Parameters  : {counts['total']:,} total | "
@@ -251,7 +257,9 @@ if __name__ == "__main__":
     parser.add_argument("--epochs",     type=int,   default=None)
     parser.add_argument("--lr",         type=float, default=None)
     parser.add_argument("--batch_size", type=int,   default=None)
-    parser.add_argument("--seed",       type=int,   default=None)
+    parser.add_argument("--seed",        type=int,   default=None)
+    parser.add_argument("--num_prompts", type=int,   default=None,
+                        help="number of VPT tokens (0 = no prompt tuning)")
     args = parser.parse_args()
 
     cfg = Config()
@@ -260,6 +268,7 @@ if __name__ == "__main__":
     if args.epochs     is not None: cfg.num_epochs  = args.epochs
     if args.lr         is not None: cfg.learning_rate = args.lr
     if args.batch_size is not None: cfg.batch_size  = args.batch_size
-    if args.seed       is not None: cfg.seed        = args.seed
+    if args.seed        is not None: cfg.seed        = args.seed
+    if args.num_prompts is not None: cfg.num_prompts = args.num_prompts
 
     main(cfg)

@@ -27,6 +27,11 @@ class Config:
     gradient_clip_norm: float = 1.0
     label_smoothing: float = 0.1
 
+    # Prompt tuning (set > 0 to enable Visual Prompt Tuning on top of
+    # full fine-tuning; 0 = standard full fine-tuning, no prompts)
+    num_prompts: int = 0
+    prompt_dropout: float = 0.1
+
     # Output
     output_dir: str = "outputs/full_finetune"
     seed: int = 42
