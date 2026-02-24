@@ -191,7 +191,7 @@ def main(cfg: Config) -> None:
     # MPS does not have Tensor Cores, so float16 autocast adds conversion
     # overhead without a net compute benefit. Only enable AMP on CUDA.
     use_amp = device.type == "cuda"
-    scaler = torch.cuda.amp.GradScaler() if device.type == "cuda" else None
+    scaler = torch.amp.GradScaler("cuda") if device.type == "cuda" else None
 
     best_val_acc = 0.0
     ckpt_path = os.path.join(cfg.output_dir, "best_model.pt")
